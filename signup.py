@@ -1,3 +1,5 @@
+import sqlite3
+from pickle import FALSE
 import streamlit as st
 import pandas as pd
 import streamlit as st
@@ -10,39 +12,52 @@ from keras.models import load_model
 import webbrowser
 
 
-
 import os
-import pafy 
-import vlc 
+import pafy
+import vlc
 import time
 import random
-import re, requests, subprocess, urllib.parse, urllib.request
+import re
+import requests
+import subprocess
+import urllib.parse
+import urllib.request
 
 # Security
-#passlib,hashlib,bcrypt,scrypt
+# passlib,hashlib,bcrypt,scrypt
 import hashlib
+import keyboard
+
+
 def make_hashes(password):
 	return hashlib.sha256(str.encode(password)).hexdigest()
 
-def check_hashes(password,hashed_text):
+
+def check_hashes(password, hashed_text):
 	if make_hashes(password) == hashed_text:
 		return hashed_text
 	return False
+
+
 # DB Management
-import sqlite3 
 conn = sqlite3.connect('data.db')
 c = conn.cursor()
 # DB  Functions
+
+
 def create_usertable():
 	c.execute('CREATE TABLE IF NOT EXISTS userstable(username TEXT,password TEXT)')
 
 
-def add_userdata(username,password):
-	c.execute('INSERT INTO userstable(username,password) VALUES (?,?)',(username,password))
+def add_userdata(username, password):
+	c.execute('INSERT INTO userstable(username,password) VALUES (?,?)',
+			  (username, password))
 	conn.commit()
 
-def login_user(username,password):
-	c.execute('SELECT * FROM userstable WHERE username =? AND password = ?',(username,password))
+
+def login_user(username, password):
+	c.execute('SELECT * FROM userstable WHERE username =? AND password = ?',
+			  (username, password))
 	data = c.fetchall()
 	return data
 
@@ -53,14 +68,13 @@ def view_all_users():
 	return data
 
 
-
 def main():
 	"""Simple Login App"""
 
 	st.title("Simple Login App")
 
-	menu = ["Home","Login","SignUp"]
-	choice = st.sidebar.selectbox("Menu",menu)
+	menu = ["Home", "Login", "SignUp"]
+	choice = st.sidebar.selectbox("Menu", menu)
 
 	if choice == "Home":
 		st.subheader("Home")
@@ -69,18 +83,19 @@ def main():
 		st.subheader("Login Section")
 
 		username = st.sidebar.text_input("User Name")
-		password = st.sidebar.text_input("Password",type='password')
+		password = st.sidebar.text_input("Password", type='password')
 		if st.sidebar.checkbox("Login"):
 			# if password == '12345':
 			create_usertable()
 			hashed_pswd = make_hashes(password)
 
-			result = login_user(username,check_hashes(password,hashed_pswd))
+			result = login_user(username, check_hashes(password, hashed_pswd))
 			if result:
 
 				st.success("Logged In as {}".format(username))
 
-				task = st.selectbox("Task",["Profiles","Check your Emotions"])
+				task = st.selectbox(
+					"Task", ["Profiles", "Check your Emotions"])
 				if task == "Check your Emotions":
 					model = load_model("model.h5")
 					label = np.load("labels.npy")
@@ -100,28 +115,37 @@ def main():
 						st.session_state["run"] = "true"
 					else:
 						st.session_state["run"] = "false"
+
 					class EmotionProcessor:
 						def recv(self, frame):
 							frm = frame.to_ndarray(format="bgr24")
 							##############################
+
 							frm = cv2.flip(frm, 1)
-							res = holis.process(cv2.cvtColor(frm, cv2.COLOR_BGR2RGB))
+							res = holis.process(
+								cv2.cvtColor(frm, cv2.COLOR_BGR2RGB))
 							lst = []
 							if res.face_landmarks:
 								for i in res.face_landmarks.landmark:
-									lst.append(i.x - res.face_landmarks.landmark[1].x)
-									lst.append(i.y - res.face_landmarks.landmark[1].y)
+									lst.append(
+										i.x - res.face_landmarks.landmark[1].x)
+									lst.append(
+										i.y - res.face_landmarks.landmark[1].y)
 								if res.left_hand_landmarks:
 									for i in res.left_hand_landmarks.landmark:
-										lst.append(i.x - res.left_hand_landmarks.landmark[8].x)
-										lst.append(i.y - res.left_hand_landmarks.landmark[8].y)
+										lst.append(
+											i.x - res.left_hand_landmarks.landmark[8].x)
+										lst.append(
+											i.y - res.left_hand_landmarks.landmark[8].y)
 								else:
 									for i in range(42):
 										lst.append(0.0)
 								if res.right_hand_landmarks:
 									for i in res.right_hand_landmarks.landmark:
-										lst.append(i.x - res.right_hand_landmarks.landmark[8].x)
-										lst.append(i.y - res.right_hand_landmarks.landmark[8].y)
+										lst.append(
+											i.x - res.right_hand_landmarks.landmark[8].x)
+										lst.append(
+											i.y - res.right_hand_landmarks.landmark[8].y)
 								else:
 									for i in range(42):
 										lst.append(0.0)
@@ -132,9 +156,9 @@ def main():
 											cv2.FONT_ITALIC, 1, (255, 0, 0), 2)
 								np.save("emotion.npy", np.array([pred]))
 							drawing.draw_landmarks(frm, res.face_landmarks, holistic.FACEMESH_TESSELATION,
-												landmark_drawing_spec=drawing.DrawingSpec(
-													color=(0, 0, 255), thickness=-1, circle_radius=1),
-												connection_drawing_spec=drawing.DrawingSpec(thickness=1))
+												   landmark_drawing_spec=drawing.DrawingSpec(
+													   color=(0, 0, 255), thickness=-1, circle_radius=1),
+												   connection_drawing_spec=drawing.DrawingSpec(thickness=1))
 							drawing.draw_landmarks(
 								frm, res.left_hand_landmarks, hands.HAND_CONNECTIONS)
 							drawing.draw_landmarks(
@@ -145,9 +169,9 @@ def main():
 					lang = st.text_input("Language")
 					singer = st.text_input("Singer")
 					st.text("Don't forget to come back and like/dislike the song")
-					like, dislike = st.columns([0.02,0.25])
-					like.button("Like")
-					dislike.button("Dislike")
+					like, dislike = st.columns([0.02, 0.25])
+					# like.button("Like")
+					# dislike.button("Dislike")
 
 					if lang and singer and st.session_state["run"] != "false":
 						webrtc_streamer(key="key", desired_playing_state=True,
@@ -156,56 +180,75 @@ def main():
 					print(emotion)
 					if btn:
 						if not(emotion):
-							st.warning("Please let me capture your emotion first")
+							st.warning(
+								"Please let me capture your emotion first")
 							st.session_state["run"] = "true"
-							
+
 						else:
-							
-							name=lang+"+"+emotion+"+"+"song"+"+"+singer
-							query_string = urllib.parse.urlencode({"search_query":name })
-							formatUrl = urllib.request.urlopen("https://www.youtube.com/results?" + query_string)
-							search_results = re.findall(r"watch\?v=(\S{11})", formatUrl.read().decode())
-							clip2 = "https://www.youtube.com/watch?v=" + "{}".format(search_results[0])
-							video = pafy.new(clip2) 
-							videolink =video.getbestaudio()  
-							print("audio is playing")  
-							media = vlc.MediaPlayer(videolink.url)  
-							media.play()
-							time.sleep(30)
-							media.stop()
+							is_playing = False
 
-							# webbrowser.open(
-							# 	f"https://music.youtube.com/search?q={lang}+{emotion}+song+{singer}")
+							name = lang+"+"+emotion+"+"+"song"+"+"+singer
+							query_string = urllib.parse.urlencode(
+								{"search_query": name})
+							formatUrl = urllib.request.urlopen(
+								"https://www.youtube.com/results?" + query_string)
+							search_results = re.findall(
+								r"watch\?v=(\S{11})", formatUrl.read().decode())
+							search_results = search_results[:10]
+							clips = []
+							for search_result in search_results:
+								path = "https://www.youtube.com/watch?v=" + \
+									"{}".format(search_result)
+								video = pafy.new(path)
+								video_link = video.getbestaudio()
+								if video_link:
+									clips.append(video_link.url)
+
+							vlc_instance = vlc.Instance()
+							player = vlc_instance.media_list_player_new()
+							player.play()
+							Media = vlc_instance.media_list_new(clips)
+							player.set_media_list(Media)
+							player.play_item_at_index(0)
+							while True:
+								time.sleep(0.25)
+								k = keyboard.read_key()
+								if k == "right":  # Next
+									player.next()
+								elif k == "left":  # Previous
+									player.previous()
+								elif k == "up": 
+									player.play()
+								elif k == "down":
+									player.pause()
+								elif k == "esc":  # Quit
+									player.stop()
+									break
+								else:
+									continue
+
 							np.save("emotion.npy", np.array([""]))
-							like.form_submit_button("Like",onclick=st.text("You like this song"),disable=False)
-							dislike.form_submit_button("Dislike",onclick=st.text("You like this song"),disable=False)
 						st.session_state["run"] = "false"
-        
-
 
 				elif task == "Profiles":
 					st.subheader("User Profiles")
 					user_result = view_all_users()
-					clean_db = pd.DataFrame(user_result,columns=["Username","Password"])
+					clean_db = pd.DataFrame(user_result, columns = [
+						"Username", "Password"])
 					st.dataframe(clean_db)
 			else:
 				st.warning("Incorrect Username/Password")
 
-
-
-
-
 	elif choice == "SignUp":
 		st.subheader("Create New Account")
 		new_user = st.text_input("Username")
-		new_password = st.text_input("Password",type='password')
+		new_password = st.text_input("Password", type= 'password')
 
 		if st.button("Signup"):
 			create_usertable()
-			add_userdata(new_user,make_hashes(new_password))
+			add_userdata(new_user, make_hashes(new_password))
 			st.success("You have successfully created a valid Account")
 			st.info("Go to Login Menu to login")
-
 
 
 if __name__ == '__main__':
