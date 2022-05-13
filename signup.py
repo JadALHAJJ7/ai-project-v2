@@ -10,7 +10,7 @@ import numpy as np
 import mediapipe as mp
 from keras.models import load_model
 import webbrowser
-
+from IPython.display import HTML
 
 import os
 import pafy
@@ -28,6 +28,8 @@ import urllib.request
 import hashlib
 import keyboard
 
+def make_clickable(val):
+    return f'<a target="_blank" href="{val}">{val}</a>'
 
 def make_hashes(password):
 	return hashlib.sha256(str.encode(password)).hexdigest()
@@ -48,6 +50,13 @@ c = conn.cursor()
 def create_usertable():
 	c.execute('CREATE TABLE IF NOT EXISTS userstable(username TEXT,password TEXT)')
 
+def create_userstatisticstable():
+    	c.execute('CREATE TABLE IF NOT EXISTS usersstatisticstable(username TEXT,emotion TEXT,song TEXT,val Text)')
+
+
+def add_userval(username,emotion,song,val):
+		c.execute('INSERT INTO usersstatisticstable(username,emotion,song,val) VALUES (?,?,?,?)',(username,emotion,song,val))
+		conn.commit()
 
 def add_userdata(username, password):
 	c.execute('INSERT INTO userstable(username,password) VALUES (?,?)',
@@ -67,8 +76,13 @@ def view_all_users():
 	data = c.fetchall()
 	return data
 
+def view_user_val(username):
+	c.execute('SELECT * FROM usersstatisticstable where username = ?',(username,))
+	dataval = c.fetchall()
+	return dataval
 
 def main():
+
 	"""Simple Login App"""
 
 	st.title("Simple Login App")
@@ -87,6 +101,8 @@ def main():
 		if st.sidebar.checkbox("Login"):
 			# if password == '12345':
 			create_usertable()
+			create_userstatisticstable()
+			#c.execute('DROP TABLE usersstatisticstable;')
 			hashed_pswd = make_hashes(password)
 
 			result = login_user(username, check_hashes(password, hashed_pswd))
@@ -95,7 +111,7 @@ def main():
 				st.success("Logged In as {}".format(username))
 
 				task = st.selectbox(
-					"Task", ["Profiles", "Check your Emotions"])
+					"Task", ["Profiles", "Check your Emotions","Statistics"])
 				if task == "Check your Emotions":
 					model = load_model("model.h5")
 					label = np.load("labels.npy")
@@ -217,6 +233,10 @@ def main():
 									player.next()
 								elif k == "left":  # Previous
 									player.previous()
+								elif k == "l":  # Like
+									add_userval(username,emotion,clips[0],"Like")
+								elif k == "d":  # Dislike
+									add_userval(username,emotion,clips[0],"Dislike")
 								elif k == "up": 
 									player.play()
 								elif k == "down":
@@ -236,6 +256,16 @@ def main():
 					clean_db = pd.DataFrame(user_result, columns = [
 						"Username", "Password"])
 					st.dataframe(clean_db)
+				
+				elif task == "Statistics":
+					st.subheader("User Statistics")
+					user_statistics = view_user_val(username)
+					clean_db = pd.DataFrame(user_statistics, columns = [
+						"Username","Emotion", "Song", "Value"])
+					#link = '[GitHub](http://github.com)'
+					#st.markdown(link, unsafe_allow_html=True)
+					st.dataframe(clean_db)
+				
 			else:
 				st.warning("Incorrect Username/Password")
 
