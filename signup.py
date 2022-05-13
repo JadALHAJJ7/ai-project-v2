@@ -226,17 +226,20 @@ def main():
 							Media = vlc_instance.media_list_new(clips)
 							player.set_media_list(Media)
 							player.play_item_at_index(0)
+							count=0
 							while True:
 								time.sleep(0.25)
 								k = keyboard.read_key()
 								if k == "right":  # Next
+									count=count+1
 									player.next()
 								elif k == "left":  # Previous
+									count=count-1
 									player.previous()
 								elif k == "l":  # Like
-									add_userval(username,emotion,clips[0],"Like")
+									add_userval(username,emotion,clips[count],"Like")
 								elif k == "d":  # Dislike
-									add_userval(username,emotion,clips[0],"Dislike")
+									add_userval(username,emotion,clips[count],"Dislike")
 								elif k == "up": 
 									player.play()
 								elif k == "down":
