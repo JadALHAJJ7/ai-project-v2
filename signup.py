@@ -241,7 +241,7 @@ def main():
 								elif k == "d":  # Dislike
 									add_userval(username,emotion,clips[count],"Dislike")
 								elif k == "up": 
-									player.play()
+									player.play() 
 								elif k == "down":
 									player.pause()
 								elif k == "esc":  # Quit
