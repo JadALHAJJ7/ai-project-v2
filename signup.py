@@ -11,7 +11,8 @@ import mediapipe as mp
 from keras.models import load_model
 import webbrowser
 from IPython.display import HTML
-
+from PIL import Image
+import pytube
 import os
 import pafy
 import vlc
@@ -28,8 +29,10 @@ import urllib.request
 import hashlib
 import keyboard
 
+st.set_page_config(page_icon="🎶",page_title="Jingy Bingy")
+
 def make_clickable(val):
-    return f'<a target="_blank" href="{val}">{val}</a>'
+    return '<a href="{}">{}</a>'.format(val,val)
 
 def make_hashes(password):
 	return hashlib.sha256(str.encode(password)).hexdigest()
@@ -51,11 +54,11 @@ def create_usertable():
 	c.execute('CREATE TABLE IF NOT EXISTS userstable(username TEXT,password TEXT)')
 
 def create_userstatisticstable():
-    	c.execute('CREATE TABLE IF NOT EXISTS usersstatisticstable(username TEXT,emotion TEXT,song TEXT,val Text)')
+    	c.execute('CREATE TABLE IF NOT EXISTS usersstatisticstable(username TEXT,emotion TEXT,song TEXT,link TEXT,val Text)')
 
 
-def add_userval(username,emotion,song,val):
-		c.execute('INSERT INTO usersstatisticstable(username,emotion,song,val) VALUES (?,?,?,?)',(username,emotion,song,val))
+def add_userval(username,emotion,song,link,val):
+		c.execute('INSERT INTO usersstatisticstable(username,emotion,song,link,val) VALUES (?,?,?,?,?)',(username,emotion,song,link,val))
 		conn.commit()
 
 def add_userdata(username, password):
@@ -81,16 +84,24 @@ def view_user_val(username):
 	dataval = c.fetchall()
 	return dataval
 
+def view_user_link(username):
+		c.execute('SELECT link FROM usersstatisticstable where username = ?',(username,))
+		dataval = c.fetchall()
+		return dataval
+
 def main():
+	
+	"""Welcome to Jingy Bingy"""
 
-	"""Simple Login App"""
-
-	st.title("Simple Login App")
+	st.title("Welcome to Jingy Bingy")
 
 	menu = ["Home", "Login", "SignUp"]
 	choice = st.sidebar.selectbox("Menu", menu)
 
 	if choice == "Home":
+    		
+		image = Image.open('emotion.jpg')
+		st.image(image)
 		st.subheader("Home")
 
 	elif choice == "Login":
@@ -185,16 +196,17 @@ def main():
 					lang = st.text_input("Language")
 					singer = st.text_input("Singer")
 					st.text("Don't forget to come back and like/dislike the song")
-					like, dislike = st.columns([0.02, 0.25])
-					# like.button("Like")
-					# dislike.button("Dislike")
+					st.text("Use ,up arrow, down arrow, left arrow, right arrow to play, stop, next, previous song")
+					st.text("Use l, d, esc, to like, dislike, exite the song")
 
 					if lang and singer and st.session_state["run"] != "false":
 						webrtc_streamer(key="key", desired_playing_state=True,
 										video_processor_factory=EmotionProcessor)
 					btn = st.button("Recommend me songs")
 					print(emotion)
+				
 					if btn:
+						
 						if not(emotion):
 							st.warning(
 								"Please let me capture your emotion first")
@@ -212,11 +224,15 @@ def main():
 								r"watch\?v=(\S{11})", formatUrl.read().decode())
 							search_results = search_results[:10]
 							clips = []
+							clips_titles = []
+							clips_redirection=[]
 							for search_result in search_results:
 								path = "https://www.youtube.com/watch?v=" + \
 									"{}".format(search_result)
+								clips_redirection.append(path)
 								video = pafy.new(path)
 								video_link = video.getbestaudio()
+								clips_titles.append(video.title)
 								if video_link:
 									clips.append(video_link.url)
 
@@ -226,6 +242,13 @@ def main():
 							Media = vlc_instance.media_list_new(clips)
 							player.set_media_list(Media)
 							player.play_item_at_index(0)
+							print('video title :'+ video.title)
+							print('*******************************************')
+							print(clips)
+							print('*******************************************')
+							print('*******************************************')
+							print(clips_titles)
+							print('*******************************************')
 							count=0
 							while True:
 								time.sleep(0.25)
@@ -237,9 +260,9 @@ def main():
 									count=count-1
 									player.previous()
 								elif k == "l":  # Like
-									add_userval(username,emotion,clips[count],"Like")
+									add_userval(username,emotion,clips_titles[count],clips_redirection[count],"Like")
 								elif k == "d":  # Dislike
-									add_userval(username,emotion,clips[count],"Dislike")
+									add_userval(username,emotion,clips_titles[count],clips_redirection[count],"Dislike")
 								elif k == "up": 
 									player.play() 
 								elif k == "down":
@@ -261,14 +284,35 @@ def main():
 					st.dataframe(clean_db)
 				
 				elif task == "Statistics":
-					st.subheader("User Statistics")
-					user_statistics = view_user_val(username)
-					clean_db = pd.DataFrame(user_statistics, columns = [
-						"Username","Emotion", "Song", "Value"])
-					#link = '[GitHub](http://github.com)'
-					#st.markdown(link, unsafe_allow_html=True)
-					st.dataframe(clean_db)
-				
+					col1,col2 = st.columns([3,1])
+					with col1:
+						st.subheader("User Statistics")
+						user_statistics = view_user_val(username)
+						clean_db = pd.DataFrame(user_statistics, columns = [
+							"Username","Emotion", "Song", "URL","Value"])
+						#clean_db.style.format({'Song' : make_clickable})
+						st.dataframe(clean_db)
+						#print(clean_db)
+					with col2:
+						st.subheader("Songs Links")
+					
+						#user_songs = view_user_song(username)
+						count_button=0
+						for row in view_user_link(username):
+							#link = '[Play](row)'
+							#reduced_string = re.sub(r'.', '', str(row), count = 24)
+							##link='<a href="'+str(row)+'"> Play </a>'
+							##st.markdown(link, unsafe_allow_html=True)
+							if st.button('Play Song '+str(count_button),key=count_button):
+								print(str(row))
+								reduced_string = re.sub(r'.', '', str(row), count = 2)
+								print(reduced_string)
+								webbrowser.get('C:/Program Files (x86)/Google/Chrome/Application/chrome.exe %s').open(reduced_string)
+							count_button=count_button+1	
+
+						# for i in range(0,len(user_songs)):
+						# 	link = '[Play](user_songs)'
+						# 	st.markdown(link, unsafe_allow_html=True)
 			else:
 				st.warning("Incorrect Username/Password")
 
