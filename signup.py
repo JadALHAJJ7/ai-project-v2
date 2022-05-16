@@ -23,7 +23,7 @@ import requests
 import subprocess
 import urllib.parse
 import urllib.request
-
+import matplotlib.pyplot as plt
 # Security
 # passlib,hashlib,bcrypt,scrypt
 import hashlib
@@ -86,6 +86,16 @@ def view_user_val(username):
 
 def view_user_link(username):
 		c.execute('SELECT link FROM usersstatisticstable where username = ?',(username,))
+		dataval = c.fetchall()
+		return dataval
+
+def view_user_like_value(username):
+		c.execute('SELECT COUNT(val) FROM usersstatisticstable where username = ? and val = "Like"',(username,))
+		dataval = c.fetchall()
+		return dataval
+
+def view_user_dislike_value(username):
+		c.execute('SELECT COUNT(val) FROM usersstatisticstable where username = ? and val = "Dislike"',(username,))
 		dataval = c.fetchall()
 		return dataval
 
@@ -313,6 +323,12 @@ def main():
 						# for i in range(0,len(user_songs)):
 						# 	link = '[Play](user_songs)'
 						# 	st.markdown(link, unsafe_allow_html=True)
+					chart_data = view_user_val(username)
+					chart = pd.DataFrame(chart_data, columns = [
+							"Username","Emotion", "Song", "URL","Value"])
+					like_count=view_user_like_value(username)
+					dislike_count=view_user_dislike_value(username)
+					chart.plot(x="Emotion", y=[like_count,dislike_count], kind="bar")
 			else:
 				st.warning("Incorrect Username/Password")
 
